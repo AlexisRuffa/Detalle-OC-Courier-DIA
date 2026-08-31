@@ -247,16 +247,21 @@ function switchTab(el) {
 
 // ── REGLAS ────────────────────────────────────────────────────────────────
 const DEFAULT_RULES = [
-  { kw:'josé valentín gómez',           tienda:92,   note:'Valentín Gómez → T92 (Del Viso)' },
-  { kw:'fructuoso',                     tienda:145,  note:'Fructuoso Díaz (cualquier número) → T145 (Garín)' },
-  { kw:'av. 14',                        tienda:1023, note:'Calle N°14 → T1023 (Berazategui)' },
-  { kw:'pres. juan domingo perón 7230', tienda:1022, note:'T1022 (Martín Coronado)' },
-  { kw:'junín 638',                     tienda:455,  note:'T455 (Balvanera)' },
-  { kw:'paraná 6370',                   tienda:100,  note:'T100 (Villa Adelina)' },
-  { kw:'ferré 6432',                    tienda:633,  note:'T633 (Villa Riachuelo)' },
-  { kw:'avenida pte. perón 3084',       tienda:146,  note:'T146 (Victoria)' },
-  { kw:'av. galicia 759',               tienda:1505, note:'T1505 (Avellaneda)' },
-  { kw:'san martín 3360',               tienda:148,  note:'Libertador S.Martín 3360 → T148 (Caseros)' },
+  { kw:'valentín gómez 7040',                tienda:92,   note:'Valentín Gómez 7040 → T92 (Del Viso)' },
+  { kw:'josé valentín gómez',                tienda:92,   note:'José Valentín Gómez → T92 (Del Viso)' },
+  { kw:'fructuoso',                          tienda:145,  note:'Fructuoso Díaz (cualquier número) → T145 (Garín)' },
+  { kw:'av. 14',                             tienda:1023, note:'Calle N°14 → T1023 (Berazategui)' },
+  { kw:'presidente juan domingo perón 7230', tienda:1022, note:'Presidente Juan Domingo Perón 7230 → T1022' },
+  { kw:'pres. juan domingo perón 7230',      tienda:1022, note:'Pres. Juan Domingo Perón 7230 → T1022' },
+  { kw:'junín 638',                          tienda:455,  note:'T455 (Balvanera)' },
+  { kw:'perú 486',                           tienda:421,  note:'Perú 486 → T421 (Monserrat)' },
+  { kw:'medrano 500',                        tienda:113,  note:'Medrano 500 → T113' },
+  { kw:'paraná 6370',                        tienda:100,  note:'T100 (Villa Adelina)' },
+  { kw:'ferré 6432',                         tienda:633,  note:'T633 (Villa Riachuelo)' },
+  { kw:'avenida pte. perón 3084',            tienda:146,  note:'T146 (Victoria)' },
+  { kw:'av. galicia 759',                    tienda:1505, note:'T1505 (Avellaneda)' },
+  { kw:'san martín 3360',                    tienda:148,  note:'Caseros — Libertador S.Martín 3360 → T148' },
+  { kw:'av. olazábal 4832',                  tienda:366,  note:'Olazábal 4832 → T366' },
 ];
 
 let manualRules = (() => { try { const s=localStorage.getItem('dia_rules'); return s?JSON.parse(s):[...DEFAULT_RULES]; } catch{return[...DEFAULT_RULES];} })();
@@ -467,6 +472,22 @@ async function generate(){
     rows.push({tienda:t.tienda,virtual:virt||null,costo:parseFloat(row[colCosto])||0,fecha:parseDate(row[colFecha])});
   }
   log(`Procesados: ${state.pedidos.length} · Cancelados: ${cancelados} · Sin match: ${sinMatch}`,sinMatch>0?'warn':'ok');
+
+  // Bloquear generación si hay sin match
+  if(sinMatch > 0){
+    setProgress(0,'');
+    document.getElementById('progress-wrap').style.display='none';
+    document.getElementById('btn-gen').disabled=false;
+    const sinMatchBox = document.createElement('div');
+    sinMatchBox.style.cssText='background:#FEE2E2;border:1px solid #FCA5A5;border-radius:10px;padding:14px 18px;margin-top:14px;font-size:13px;color:#991B1B';
+    sinMatchBox.innerHTML='<b>⛔ No se puede generar el archivo</b><br>Hay <b>'+sinMatch+' dirección/es sin match de tienda</b>. Antes de continuar, revisá el log y agregá las reglas faltantes en la pestaña <b>⚙️ Reglas de matching</b>.';
+    const existingBox = document.getElementById('sinmatch-error');
+    if(existingBox) existingBox.remove();
+    sinMatchBox.id='sinmatch-error';
+    document.getElementById('log-box').after(sinMatchBox);
+    return;
+  }
+  document.getElementById('sinmatch-error')?.remove();
 
   setProgress(40,'Calculando semanas...'); await tick();
   const fechas=rows.map(r=>r.fecha).filter(Boolean).sort((a,b)=>a-b);
@@ -731,6 +752,22 @@ async function generateRappi(){
   }
   if(sinNum) logR(`Sin número de tienda extraíble: ${sinNum} filas excluidas`,'err');
   logR(`Filas procesadas: ${rows.length}`,'ok');
+
+  // Bloquear si hay filas sin número extraíble
+  if(sinNum > 0){
+    setProgressR(0,'');
+    document.getElementById('progress-wrap-rappi').style.display='none';
+    document.getElementById('btn-rappi').disabled=false;
+    const errBox = document.createElement('div');
+    errBox.style.cssText='background:#FEE2E2;border:1px solid #FCA5A5;border-radius:10px;padding:14px 18px;margin-top:14px;font-size:13px;color:#991B1B';
+    errBox.innerHTML='<b>⛔ No se puede generar el archivo</b><br>Hay <b>'+sinNum+' fila/s sin número de tienda extraíble</b>. Revisá el log para ver qué nombres fallan.';
+    const existingErrBox = document.getElementById('sinmatch-error-rappi');
+    if(existingErrBox) existingErrBox.remove();
+    errBox.id='sinmatch-error-rappi';
+    document.getElementById('log-box-rappi').after(errBox);
+    return;
+  }
+  document.getElementById('sinmatch-error-rappi')?.remove();
 
   setProgressR(50,'Agrupando por tienda...'); await tick();
 
